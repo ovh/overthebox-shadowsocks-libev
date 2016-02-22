@@ -60,6 +60,7 @@ typedef struct {
     int fast_open;
     int nofile;
     char *nameserver;
+    int dscp_num;
     ss_dscp_t dscp[MAX_DSCP_NUM];
 } jconf_t;
 

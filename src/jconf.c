@@ -206,6 +206,7 @@ jconf_t *read_jconf(const char *file)
                                         value->u.object.values[j].name_length);
                             conf.dscp[j].port = port;
                             conf.dscp[j].dscp = dscp;
+                            conf.dscp_num = j + 1;
                         }
                     }
                 }
