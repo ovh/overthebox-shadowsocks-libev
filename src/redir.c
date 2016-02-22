@@ -29,6 +29,7 @@
 #include <locale.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <pthread.h>
 #include <signal.h>
@@ -607,8 +608,31 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
     setsockopt(remotefd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof(opt));
 #endif
 
-    // Setup
     setnonblocking(remotefd);
+
+    // Logging (client address and original destination)
+    char ip[2][NI_MAXHOST];
+    char port[2][NI_MAXSERV];
+
+    err = getnameinfo(remote_addr, sizeof(*remote_addr),
+            ip[0], sizeof(ip[0]), port[0], sizeof(port[0]),
+            NI_NUMERICHOST | NI_NUMERICSERV);
+    if (err) {
+        ERROR("getnameinfo");
+        return;
+    }
+
+    err = getnameinfo((struct sockaddr *)&destaddr, sizeof(destaddr),
+            ip[1], sizeof(ip[1]), port[1], sizeof(port[1]),
+            NI_NUMERICHOST | NI_NUMERICSERV);
+    if (err) {
+        ERROR("getnameinfo");
+        return;
+    }
+    LOGI("accept client %s:%s (-> %s:%s)", ip[0], port[0],
+            ip[1], port[1]);
+
+
 
     server_t *server = new_server(serverfd, listener->method);
     remote_t *remote = new_remote(remotefd, listener->timeout);
