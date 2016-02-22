@@ -193,6 +193,22 @@ jconf_t *read_jconf(const char *file)
                 conf.nofile = value->u.integer;
             } else if (strcmp(name, "nameserver") == 0) {
                 conf.nameserver = to_string(value);
+            } else if (strcmp(name, "dscp") == 0) {
+                if (value->type == json_object) {
+                    for (j = 0; j < value->u.object.length; j++) {
+                        if (j >= MAX_DSCP_NUM) {
+                            break;
+                        }
+                        json_value *v = value->u.object.values[j].value;
+                        if (v->type == json_string) {
+                            int dscp = (int)strtol(to_string(v), NULL, 0);
+                            char * port = ss_strndup(value->u.object.values[j].name,
+                                        value->u.object.values[j].name_length);
+                            conf.dscp[j].port = port;
+                            conf.dscp[j].dscp = dscp;
+                        }
+                    }
+                }
             }
         }
     } else {

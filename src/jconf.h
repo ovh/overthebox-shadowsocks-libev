@@ -24,6 +24,7 @@
 
 #define MAX_PORT_NUM 1024
 #define MAX_REMOTE_NUM 10
+#define MAX_DSCP_NUM 64
 #define MAX_CONF_SIZE 128 * 1024
 #define MAX_DNS_NUM 4
 #define MAX_CONNECT_TIMEOUT 10
@@ -40,6 +41,11 @@ typedef struct {
 } ss_port_password_t;
 
 typedef struct {
+    char *port;
+    int dscp;
+} ss_dscp_t;
+
+typedef struct {
     int remote_num;
     ss_addr_t remote_addr[MAX_REMOTE_NUM];
     int port_password_num;
@@ -54,6 +60,7 @@ typedef struct {
     int fast_open;
     int nofile;
     char *nameserver;
+    ss_dscp_t dscp[MAX_DSCP_NUM];
 } jconf_t;
 
 jconf_t *read_jconf(const char *file);
