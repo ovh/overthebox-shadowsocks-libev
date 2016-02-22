@@ -632,6 +632,18 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
     LOGI("accept client %s:%s (-> %s:%s)", ip[0], port[0],
             ip[1], port[1]);
 
+    // Set DSCP
+    for (int j = 0; j < listener->dscp_num; j++) {
+        if (strcmp(listener->dscp[j].port, port[1]) == 0) {
+            int tos = listener->dscp[j].dscp << 2;
+            err = setsockopt(remotefd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
+            if (err) {
+                ERROR("setsockopt IP_TOS");
+                return;
+            }
+            break;
+        }
+    }
 
 
     server_t *server = new_server(serverfd, listener->method);
@@ -663,6 +675,9 @@ int main(int argc, char **argv)
     int remote_num = 0;
     ss_addr_t remote_addr[MAX_REMOTE_NUM];
     char *remote_port = NULL;
+
+    int dscp_num = 0;
+    ss_dscp_t * dscp = NULL;
 
     opterr = 0;
 
@@ -760,6 +775,8 @@ int main(int argc, char **argv)
         if (auth == 0) {
             auth = conf->auth;
         }
+        dscp_num = conf->dscp_num;
+        dscp = conf->dscp;
 #ifdef HAVE_SETRLIMIT
         if (nofile == 0) {
             nofile = conf->nofile;
@@ -825,6 +842,9 @@ int main(int argc, char **argv)
     }
     listen_ctx.timeout = atoi(timeout);
     listen_ctx.method  = m;
+
+    listen_ctx.dscp_num = dscp_num;
+    listen_ctx.dscp = dscp;
 
     struct ev_loop *loop = EV_DEFAULT;
 
