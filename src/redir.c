@@ -633,8 +633,21 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
             ip[1], port[1]);
 
     // Set DSCP
+    int dest_port;
+    switch (destaddr.ss_family) {
+        case AF_INET:
+            dest_port = ntohs(((struct sockaddr_in *)&destaddr)->sin_port);
+            break;
+        case AF_INET6:
+            dest_port = ntohs(((struct sockaddr_in6 *)&destaddr)->sin6_port);
+            break;
+        default:
+            LOGE("An unexpected error occurred.");
+            return;
+    }
+
     for (int j = 0; j < listener->dscp_num; j++) {
-        if (strcmp(listener->dscp[j].port, port[1]) == 0) {
+        if (listener->dscp[j].port == dest_port) {
             int tos = listener->dscp[j].dscp << 2;
             err = setsockopt(remotefd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
             if (err) {

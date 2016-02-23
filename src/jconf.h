@@ -41,7 +41,7 @@ typedef struct {
 } ss_port_password_t;
 
 typedef struct {
-    char *port;
+    unsigned short port;
     int dscp;
 } ss_dscp_t;
 
