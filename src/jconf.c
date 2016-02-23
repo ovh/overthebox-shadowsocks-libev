@@ -27,6 +27,7 @@
 
 #include "utils.h"
 #include "jconf.h"
+#include "dscp.h"
 #include "json.h"
 #include "string.h"
 
@@ -95,6 +96,43 @@ void parse_addr(const char *str, ss_addr_t *addr)
         }
         addr->port = strdup(str + ret + 1);
     }
+}
+
+static int parse_dscp(char *str)
+{
+    size_t str_len = strlen(str);
+
+    if (str_len < DSCP_MIN_LEN || str_len > DSCP_MAX_LEN) { }
+
+    // Manual hexadecimal mode (0xYZ)
+    else if (str[0] == '0') {
+        char *endptr;
+        int dscp = (int)strtol(str, &endptr, 0);
+        if (dscp >= DSCP_MIN && dscp <= DSCP_MAX && *endptr == '\0') {
+            return dscp;
+        }
+    }
+
+    // Pre-defined values (EF, CSx, AFxy)
+    else if (strcasecmp(str, "EF") == 0) {
+        return DSCP_EF;
+    }
+
+    else if (strncasecmp(str, "CS", 2) == 0 && str_len == DSCP_CS_LEN) {
+        if (str[2] >= '0' && str[2] <= '7') {
+            return DSCP_CS[str[2] - '0'];
+        }
+    }
+
+    else if (strncasecmp(str, "AF", 2) == 0 && str_len == DSCP_AF_LEN) {
+        if (str[2] >= '1' && str[2] <= '4' && str[3] >= '1' && str[3] <= '3') {
+            int idx = str[3] - '0' - 1 + DSCP_AF_STEP * (str[2] - '0' - 1);
+            return DSCP_AF[idx];
+        }
+    }
+
+    LOGE("Invalid DSCP value (%s)", str);
+    return DSCP_DEFAULT;
 }
 
 jconf_t *read_jconf(const char *file)
@@ -201,7 +239,7 @@ jconf_t *read_jconf(const char *file)
                         }
                         json_value *v = value->u.object.values[j].value;
                         if (v->type == json_string) {
-                            int dscp = (int)strtol(to_string(v), NULL, 0);
+                            int dscp = parse_dscp(to_string(v));
                             char * port = ss_strndup(value->u.object.values[j].name,
                                         value->u.object.values[j].name_length);
                             conf.dscp[j].port = port;
