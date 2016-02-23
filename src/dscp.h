@@ -35,7 +35,6 @@ static const int DSCP_AF[] = { 0xA, 0xC, 0xE, 0x12, 0x14, 0x16, 0x1A, 0x1C,
 
 #define DSCP_DEFAULT DSCP_CS[0]
 
-#define DSCP_AF_STEP 3
 #define DSCP_MIN_LEN 2
 #define DSCP_MAX_LEN 4
 #define DSCP_AF_LEN 4

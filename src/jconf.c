@@ -129,7 +129,7 @@ static int parse_dscp(char *str)
 
     else if (strncasecmp(str, "AF", 2) == 0 && str_len == DSCP_AF_LEN) {
         if (str[2] >= '1' && str[2] <= '4' && str[3] >= '1' && str[3] <= '3') {
-            int idx = str[3] - '0' - 1 + DSCP_AF_STEP * (str[2] - '0' - 1);
+            int idx = str[3] - '0' - 1 + 3 * (str[2] - '0' - 1);
             return DSCP_AF[idx];
         }
     }
