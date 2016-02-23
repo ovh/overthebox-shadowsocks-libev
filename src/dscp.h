@@ -20,7 +20,7 @@
 #ifndef _DSCP_H
 #define _DSCP_H
 
-/* CS   = Class Selector        (RFC 2474)
+/* CSx  = Class Selector        (RFC 2474)
    AFxy = Assured Forwarding    (RFC 2597)
    EF   = Expedited Forwarding  (RFC 3246) */
 

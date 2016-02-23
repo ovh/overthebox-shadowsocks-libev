@@ -102,7 +102,10 @@ static int parse_dscp(char *str)
 {
     size_t str_len = strlen(str);
 
-    if (str_len < DSCP_MIN_LEN || str_len > DSCP_MAX_LEN) { }
+    if (str_len < DSCP_MIN_LEN || str_len > DSCP_MAX_LEN) {
+        LOGE("The DSCP string provided (%s) is too long", str);
+        return DSCP_DEFAULT;
+    }
 
     // Manual hexadecimal mode (0xYZ)
     else if (str[0] == '0') {
