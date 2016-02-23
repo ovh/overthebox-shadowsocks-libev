@@ -618,19 +618,19 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
             ip[0], sizeof(ip[0]), port[0], sizeof(port[0]),
             NI_NUMERICHOST | NI_NUMERICSERV);
     if (err) {
-        ERROR("getnameinfo");
-        return;
+        LOGE("getnameinfo: %s", gai_strerror(err));
     }
-
-    err = getnameinfo((struct sockaddr *)&destaddr, sizeof(destaddr),
-            ip[1], sizeof(ip[1]), port[1], sizeof(port[1]),
-            NI_NUMERICHOST | NI_NUMERICSERV);
-    if (err) {
-        ERROR("getnameinfo");
-        return;
+    else {
+        err = getnameinfo((struct sockaddr *)&destaddr, sizeof(destaddr),
+                ip[1], sizeof(ip[1]), port[1], sizeof(port[1]),
+                NI_NUMERICHOST | NI_NUMERICSERV);
+        if (err) {
+            LOGE("getnameinfo: %s", gai_strerror(err));
+        }
+        else {
+            LOGI("accept client %s:%s (-> %s:%s)", ip[0], port[0], ip[1], port[1]);
+        }
     }
-    LOGI("accept client %s:%s (-> %s:%s)", ip[0], port[0],
-            ip[1], port[1]);
 
     // Set DSCP
     int dest_port;
@@ -652,7 +652,6 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
             err = setsockopt(remotefd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
             if (err) {
                 ERROR("setsockopt IP_TOS");
-                return;
             }
             break;
         }
