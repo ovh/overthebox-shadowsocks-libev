@@ -606,6 +606,7 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
 #ifdef SO_NOSIGPIPE
     setsockopt(remotefd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof(opt));
 #endif
+    setsockopt(remotefd, SOL_TCP, MPTCP_ENABLED, &opt, sizeof(opt));
 
     // Setup
     setnonblocking(remotefd);
