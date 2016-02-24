@@ -30,6 +30,15 @@
 #define MAX_CONNECT_TIMEOUT 10
 #define MIN_UDP_TIMEOUT 10
 
+#define DSCP_EF     0x2E
+#define DSCP_MIN    0x0
+#define DSCP_MAX    0x3F
+#define DSCP_DEFAULT 0x0
+#define DSCP_MIN_LEN 2
+#define DSCP_MAX_LEN 4
+#define DSCP_CS_LEN 3
+#define DSCP_AF_LEN 4
+
 typedef struct {
     char *host;
     char *port;

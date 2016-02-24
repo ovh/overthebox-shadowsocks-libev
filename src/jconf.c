@@ -27,7 +27,6 @@
 
 #include "utils.h"
 #include "jconf.h"
-#include "dscp.h"
 #include "json.h"
 #include "string.h"
 
