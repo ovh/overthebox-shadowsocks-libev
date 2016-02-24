@@ -102,37 +102,30 @@ static int parse_dscp(char *str)
 {
     size_t str_len = strlen(str);
 
-    if (str_len < DSCP_MIN_LEN || str_len > DSCP_MAX_LEN) {
-        LOGE("The DSCP string provided (%s) is too long", str);
-        return DSCP_DEFAULT;
-    }
-
-    // Manual hexadecimal mode (0xYZ)
-    else if (str[0] == '0') {
-        char *endptr;
-        int dscp = (int)strtol(str, &endptr, 0);
-        if (dscp >= DSCP_MIN && dscp <= DSCP_MAX && *endptr == '\0') {
-            return dscp;
-        }
-    }
-
     // Pre-defined values (EF, CSx, AFxy)
-    else if (strcasecmp(str, "EF") == 0) {
+    if (str_len == 2 && strcasecmp(str, "EF") == 0) {
         return DSCP_EF;
     }
 
-    else if (strncasecmp(str, "CS", 2) == 0 && str_len == DSCP_CS_LEN) {
+    if (str_len == DSCP_CS_LEN && strncasecmp(str, "CS", 2) == 0) {
         if (str[2] >= '0' && str[2] <= '7') {
             // CSx = 8x
             return (str[2] - '0') << 3;
         }
     }
 
-    else if (strncasecmp(str, "AF", 2) == 0 && str_len == DSCP_AF_LEN) {
+    if (str_len == DSCP_AF_LEN && strncasecmp(str, "AF", 2) == 0) {
         if (str[2] >= '1' && str[2] <= '4' && str[3] >= '1' && str[3] <= '3') {
             // AFxy = 8x + 2y
             return ((str[2] - '0') << 3) | ((str[3] - '0') << 1);
         }
+    }
+
+    // Manual hexadecimal mode (0xYZ)
+    char *endptr;
+    int dscp = (int)strtol(str, &endptr, 0);
+    if (*endptr == '\0' && dscp >= DSCP_MIN && dscp <= DSCP_MAX) {
+        return dscp;
     }
 
     LOGE("Invalid DSCP value (%s)", str);
