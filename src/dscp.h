@@ -20,20 +20,12 @@
 #ifndef _DSCP_H
 #define _DSCP_H
 
-/* CSx  = Class Selector        (RFC 2474)
-   AFxy = Assured Forwarding    (RFC 2597)
-   EF   = Expedited Forwarding  (RFC 3246) */
+#define DSCP_EF     0x2E
 
-static const int DSCP_CS[] = { 0x0, 0x8, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38 };
-static const int DSCP_AF[] = { 0xA, 0xC, 0xE, 0x12, 0x14, 0x16, 0x1A, 0x1C,
-    0x1E, 0x22, 0x24, 0x26 };
+#define DSCP_MIN    0x0
+#define DSCP_MAX    0x3F
 
-#define DSCP_EF     (0x2E)
-
-#define DSCP_MIN    DSCP_CS[0]
-#define DSCP_MAX    (0x3F)
-
-#define DSCP_DEFAULT DSCP_CS[0]
+#define DSCP_DEFAULT 0x0
 
 #define DSCP_MIN_LEN 2
 #define DSCP_MAX_LEN 4
