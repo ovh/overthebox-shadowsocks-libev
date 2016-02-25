@@ -311,7 +311,7 @@ int setinterface(int socket_fd, const char *interface_name)
 
 #endif
 
-int create_and_bind(const char *host, const char *port)
+int create_and_bind(const char *host, const char *port, int mptcp)
 {
     struct addrinfo hints;
     struct addrinfo *result, *rp, *ipv4v6bindall;
@@ -378,6 +378,15 @@ int create_and_bind(const char *host, const char *port)
         int err = set_reuseport(listen_sock);
         if (err == 0) {
             LOGI("port reuse enabled");
+        }
+
+        if (mptcp == 1) {
+            err = setsockopt(listen_sock, IPPROTO_TCP, MPTCP_ENABLED, &opt, sizeof(opt));
+            if (err == -1) {
+                LOGE("Could not enable MPTCP on socket. Retrying...");
+                continue;
+            }
+            LOGI("MPTCP enabled");
         }
 
         s = bind(listen_sock, rp->ai_addr, rp->ai_addrlen);
@@ -1288,7 +1297,6 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
     setsockopt(serverfd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof(opt));
 #endif
     setnonblocking(serverfd);
-    setsockopt(serverfd, SOL_TCP, MPTCP_ENABLED, &opt, sizeof(opt));
 
     if (verbose) {
         LOGI("accept a connection");
@@ -1317,6 +1325,7 @@ int main(int argc, char **argv)
 
     char *nameservers[MAX_DNS_NUM + 1];
     int nameserver_num = 0;
+    int mptcp = 0;
 
     int option_index                    = 0;
     static struct option long_options[] = {
@@ -1445,6 +1454,9 @@ int main(int argc, char **argv)
         if (nofile == 0) {
             nofile = conf->nofile;
         }
+
+        mptcp = conf->mptcp;
+
         /*
          * no need to check the return value here since we will show
          * the user an error message if setrlimit(2) fails
@@ -1544,7 +1556,7 @@ int main(int argc, char **argv)
         if (mode != UDP_ONLY) {
             // Bind to port
             int listenfd;
-            listenfd = create_and_bind(host, server_port);
+            listenfd = create_and_bind(host, server_port, mptcp);
             if (listenfd < 0) {
                 FATAL("bind() error");
             }

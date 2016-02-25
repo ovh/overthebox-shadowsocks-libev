@@ -606,7 +606,15 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
 #ifdef SO_NOSIGPIPE
     setsockopt(remotefd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof(opt));
 #endif
-    setsockopt(remotefd, SOL_TCP, MPTCP_ENABLED, &opt, sizeof(opt));
+
+    if (listener->mptcp == 1) {
+        err = setsockopt(remotefd, SOL_TCP, MPTCP_ENABLED, &opt, sizeof(opt));
+        if (err == -1) {
+            ERROR("Could not enable MPTCP");
+            return;
+        }
+            LOGI("MPTCP enabled");
+    }
 
     // Setup
     setnonblocking(remotefd);
@@ -640,6 +648,8 @@ int main(int argc, char **argv)
     int remote_num = 0;
     ss_addr_t remote_addr[MAX_REMOTE_NUM];
     char *remote_port = NULL;
+
+    int mptcp = 0;
 
     opterr = 0;
 
@@ -737,6 +747,9 @@ int main(int argc, char **argv)
         if (auth == 0) {
             auth = conf->auth;
         }
+
+        mptcp = conf->mptcp;
+
 #ifdef HAVE_SETRLIMIT
         if (nofile == 0) {
             nofile = conf->nofile;
@@ -802,6 +815,7 @@ int main(int argc, char **argv)
     }
     listen_ctx.timeout = atoi(timeout);
     listen_ctx.method  = m;
+    listen_ctx.mptcp = mptcp;
 
     struct ev_loop *loop = EV_DEFAULT;
 

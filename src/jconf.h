@@ -54,6 +54,7 @@ typedef struct {
     int fast_open;
     int nofile;
     char *nameserver;
+    int mptcp;
 } jconf_t;
 
 jconf_t *read_jconf(const char *file);
