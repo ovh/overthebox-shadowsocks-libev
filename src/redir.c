@@ -608,6 +608,15 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
     setsockopt(remotefd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof(opt));
 #endif
 
+    if (listener->mptcp == 1) {
+        err = setsockopt(remotefd, SOL_TCP, MPTCP_ENABLED, &opt, sizeof(opt));
+        if (err == -1) {
+            ERROR("Could not enable MPTCP");
+            return;
+        }
+        LOGI("MPTCP enabled");
+    }
+
     setnonblocking(remotefd);
 
     // Logging (client address and original destination)
@@ -690,6 +699,8 @@ int main(int argc, char **argv)
 
     int dscp_num = 0;
     ss_dscp_t * dscp = NULL;
+
+    int mptcp = 0;
 
     opterr = 0;
 
@@ -789,6 +800,8 @@ int main(int argc, char **argv)
         }
         dscp_num = conf->dscp_num;
         dscp = conf->dscp;
+
+        mptcp = conf->mptcp;
 #ifdef HAVE_SETRLIMIT
         if (nofile == 0) {
             nofile = conf->nofile;
@@ -854,6 +867,7 @@ int main(int argc, char **argv)
     }
     listen_ctx.timeout = atoi(timeout);
     listen_ctx.method  = m;
+    listen_ctx.mptcp = mptcp;
 
     listen_ctx.dscp_num = dscp_num;
     listen_ctx.dscp = dscp;

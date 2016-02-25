@@ -71,6 +71,7 @@ typedef struct {
     char *nameserver;
     int dscp_num;
     ss_dscp_t dscp[MAX_DSCP_NUM];
+    int mptcp;
 } jconf_t;
 
 jconf_t *read_jconf(const char *file);

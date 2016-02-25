@@ -36,6 +36,7 @@ typedef struct listen_ctx {
     struct sockaddr **remote_addr;
     int dscp_num;
     ss_dscp_t *dscp;
+    int mptcp;
 } listen_ctx_t;
 
 typedef struct server_ctx {

@@ -244,6 +244,8 @@ jconf_t *read_jconf(const char *file)
                         }
                     }
                 }
+            } else if (strcmp(name, "mptcp") == 0) {
+                conf.mptcp = value->u.boolean;
             }
         }
     } else {
