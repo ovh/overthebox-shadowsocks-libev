@@ -679,6 +679,7 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
             info.ai_addrlen  = sizeof(struct sockaddr_in);
             info.ai_addr     = (struct sockaddr *)addr;
 
+            // Monitoring requested
             if (server->listen_ctx->monitor_addr != NULL) {
                 if (memcmp(&addr->sin_addr, server->listen_ctx->monitor_addr, sizeof (addr->sin_addr)) == 0) {
                     char *peer_name = get_peer_name(server->fd);
@@ -701,6 +702,7 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
 
                     int s = send(server->fd, server->buf->array, server->buf->len, 0);
 
+                    server->bypass_remote = 1;
                     if (s == -1) {
                         if (errno == EAGAIN || errno == EWOULDBLOCK) {
                             // no data, wait for send
@@ -865,7 +867,7 @@ static void server_send_cb(EV_P_ ev_io *w, int revents)
     server_t *server              = server_send_ctx->server;
     remote_t *remote              = server->remote;
 
-    if (remote == NULL) {
+    if (remote == NULL && !server->bypass_remote) {
         LOGE("invalid server");
         close_and_free_server(EV_A_ server);
         return;
@@ -904,7 +906,9 @@ static void server_send_cb(EV_P_ ev_io *w, int revents)
                 ev_io_start(EV_A_ & remote->recv_ctx->io);
                 return;
             } else {
-                LOGE("invalid remote");
+                if (!server->bypass_remote) {
+                    LOGE("invalid remote");
+                }
                 close_and_free_remote(EV_A_ remote);
                 close_and_free_server(EV_A_ server);
                 return;
@@ -1217,6 +1221,7 @@ static server_t *new_server(int fd, listen_ctx_t *listener)
     server->query               = NULL;
     server->listen_ctx          = listener;
     server->remote              = NULL;
+    server->bypass_remote       = 0;
 
     if (listener->method) {
         server->e_ctx = malloc(sizeof(enc_ctx_t));

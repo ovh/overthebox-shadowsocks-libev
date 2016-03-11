@@ -65,6 +65,8 @@ typedef struct server {
     struct listen_ctx *listen_ctx;
     struct remote *remote;
 
+    int bypass_remote;
+
     struct ResolvQuery *query;
 
     struct cork_dllist_item entries;
