@@ -40,6 +40,7 @@ typedef struct listen_ctx {
     int method;
     char *iface;
     struct ev_loop *loop;
+    struct in_addr * monitor_addr;
 } listen_ctx_t;
 
 typedef struct server_ctx {

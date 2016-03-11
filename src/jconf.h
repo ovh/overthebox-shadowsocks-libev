@@ -29,6 +29,8 @@
 #define MAX_CONNECT_TIMEOUT 10
 #define MIN_UDP_TIMEOUT 10
 
+#include <arpa/inet.h>
+
 typedef struct {
     char *host;
     char *port;
@@ -54,6 +56,7 @@ typedef struct {
     int fast_open;
     int nofile;
     char *nameserver;
+    struct in_addr monitor_addr;
 } jconf_t;
 
 jconf_t *read_jconf(const char *file);
