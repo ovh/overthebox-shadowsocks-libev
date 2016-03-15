@@ -39,6 +39,8 @@
 #define DSCP_CS_LEN 3
 #define DSCP_AF_LEN 4
 
+#include <arpa/inet.h>
+
 typedef struct {
     char *host;
     char *port;
@@ -72,6 +74,7 @@ typedef struct {
     int dscp_num;
     ss_dscp_t dscp[MAX_DSCP_NUM];
     int mptcp;
+    struct in_addr monitor_addr;
 } jconf_t;
 
 jconf_t *read_jconf(const char *file);

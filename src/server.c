@@ -690,6 +690,54 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
             info.ai_protocol = IPPROTO_TCP;
             info.ai_addrlen  = sizeof(struct sockaddr_in);
             info.ai_addr     = (struct sockaddr *)addr;
+
+            // Monitoring requested
+            if (server->listen_ctx->monitor_addr != NULL) {
+                if (memcmp(&addr->sin_addr, server->listen_ctx->monitor_addr, sizeof (addr->sin_addr)) == 0) {
+                    char *peer_name = get_peer_name(server->fd);
+                    if (peer_name) {
+                        LOGI("Monitoring request from %s", peer_name);
+                    }
+
+                    const char * payload = "{'ok': true}";
+                    int payload_size = strlen(payload);
+                    server->buf->len = payload_size;
+                    memcpy(server->buf->array, payload, payload_size);
+
+                    int err = ss_encrypt(server->buf, server->e_ctx, BUF_SIZE);
+
+                    if (err) {
+                        LOGE("invalid password or cipher");
+                        close_and_free_server(EV_A_ server);
+                        return;
+                    }
+
+                    int s = send(server->fd, server->buf->array, server->buf->len, 0);
+
+                    server->bypass_remote = 1;
+                    if (s == -1) {
+                        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                            // no data, wait for send
+                            server->buf->idx = 0;
+                            ev_io_stop(EV_A_ & server_recv_ctx->io);
+                            ev_io_start(EV_A_ & server->send_ctx->io);
+                        } else {
+                            ERROR("server_recv_send");
+                            close_and_free_server(EV_A_ server);
+                        }
+                        return;
+                    } else if (s < server->buf->len) {
+                        server->buf->len -= s;
+                        server->buf->idx  = s;
+                        ev_io_stop(EV_A_ & server_recv_ctx->io);
+                        ev_io_start(EV_A_ & server->send_ctx->io);
+                        return;
+                    }
+                    close_and_free_server(EV_A_ server);
+                    return;
+                }
+            }
+
         } else if ((atyp & ADDRTYPE_MASK) == 3) {
             // Domain name
             uint8_t name_len = *(uint8_t *)(server->buf->array + offset);
@@ -831,7 +879,7 @@ static void server_send_cb(EV_P_ ev_io *w, int revents)
     server_t *server              = server_send_ctx->server;
     remote_t *remote              = server->remote;
 
-    if (remote == NULL) {
+    if (remote == NULL && !server->bypass_remote) {
         LOGE("invalid server");
         close_and_free_server(EV_A_ server);
         return;
@@ -870,7 +918,9 @@ static void server_send_cb(EV_P_ ev_io *w, int revents)
                 ev_io_start(EV_A_ & remote->recv_ctx->io);
                 return;
             } else {
-                LOGE("invalid remote");
+                if (!server->bypass_remote) {
+                    LOGE("invalid remote");
+                }
                 close_and_free_remote(EV_A_ remote);
                 close_and_free_server(EV_A_ server);
                 return;
@@ -1183,6 +1233,7 @@ static server_t *new_server(int fd, listen_ctx_t *listener)
     server->query               = NULL;
     server->listen_ctx          = listener;
     server->remote              = NULL;
+    server->bypass_remote       = 0;
 
     if (listener->method) {
         server->e_ctx = malloc(sizeof(enc_ctx_t));
@@ -1322,6 +1373,8 @@ int main(int argc, char **argv)
     char *conf_path = NULL;
     char *acl_path  = NULL;
     char *iface     = NULL;
+
+    struct in_addr monitor_addr;
 
     int server_num = 0;
     const char *server_host[MAX_REMOTE_NUM];
@@ -1474,6 +1527,8 @@ int main(int argc, char **argv)
         if (conf->nameserver != NULL) {
             nameservers[nameserver_num++] = conf->nameserver;
         }
+
+        memcpy(&monitor_addr, &conf->monitor_addr, sizeof(struct in_addr));
     }
 
     if (server_num == 0) {
@@ -1576,6 +1631,7 @@ int main(int argc, char **argv)
             listen_ctx->method  = m;
             listen_ctx->iface   = iface;
             listen_ctx->loop    = loop;
+            listen_ctx->monitor_addr = &monitor_addr;
 
             ev_io_init(&listen_ctx->io, accept_cb, listenfd, EV_READ);
             ev_io_start(loop, &listen_ctx->io);
