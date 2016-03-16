@@ -140,10 +140,7 @@ int create_and_bind(const char *addr, const char *port)
 #ifdef SO_NOSIGPIPE
         setsockopt(listen_sock, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof(opt));
 #endif
-        int err = set_reuseport(listen_sock);
-        if (err == 0) {
-            LOGI("tcp port reuse enabled");
-        }
+        set_reuseport(listen_sock);
 
         s = bind(listen_sock, rp->ai_addr, rp->ai_addrlen);
         if (s == 0) {
@@ -610,6 +607,13 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
 
     setnonblocking(remotefd);
 
+    int tos = listener->tos;
+    if (tos >= 0) {
+        if (setsockopt(remotefd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)) != 0) {
+            ERROR("setsockopt IP_TOS");
+        }
+    }
+
     // Logging (client address and original destination)
     char ip[2][NI_MAXHOST];
     char port[2][NI_MAXSERV];
@@ -631,32 +635,6 @@ static void accept_cb(EV_P_ ev_io *w, int revents)
             LOGI("accept client %s:%s (-> %s:%s)", ip[0], port[0], ip[1], port[1]);
         }
     }
-
-    // Set DSCP
-    int dest_port;
-    switch (destaddr.ss_family) {
-        case AF_INET:
-            dest_port = ntohs(((struct sockaddr_in *)&destaddr)->sin_port);
-            break;
-        case AF_INET6:
-            dest_port = ntohs(((struct sockaddr_in6 *)&destaddr)->sin6_port);
-            break;
-        default:
-            LOGE("An unexpected error occurred.");
-            return;
-    }
-
-    for (int j = 0; j < listener->dscp_num; j++) {
-        if (listener->dscp[j].port == dest_port) {
-            int tos = listener->dscp[j].dscp << 2;
-            err = setsockopt(remotefd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
-            if (err) {
-                ERROR("setsockopt IP_TOS");
-            }
-            break;
-        }
-    }
-
 
     server_t *server = new_server(serverfd, listener->method);
     remote_t *remote = new_remote(remotefd, listener->timeout);
@@ -837,59 +815,68 @@ int main(int argc, char **argv)
     LOGI("initialize ciphers... %s", method);
     int m = enc_init(password, method);
 
-    // Setup proxy context
-    listen_ctx_t listen_ctx;
-    listen_ctx.remote_num  = remote_num;
-    listen_ctx.remote_addr = malloc(sizeof(struct sockaddr *) * remote_num);
-    for (int i = 0; i < remote_num; i++) {
-        char *host = remote_addr[i].host;
-        char *port = remote_addr[i].port == NULL ? remote_port :
-                     remote_addr[i].port;
-        struct sockaddr_storage *storage = malloc(sizeof(struct sockaddr_storage));
-        memset(storage, 0, sizeof(struct sockaddr_storage));
-        if (get_sockaddr(host, port, storage, 1) == -1) {
-            FATAL("failed to resolve the provided hostname");
-        }
-        listen_ctx.remote_addr[i] = (struct sockaddr *)storage;
-    }
-    listen_ctx.timeout = atoi(timeout);
-    listen_ctx.method  = m;
-
-    listen_ctx.dscp_num = dscp_num;
-    listen_ctx.dscp = dscp;
-
     struct ev_loop *loop = EV_DEFAULT;
 
-    if (mode != UDP_ONLY) {
-        // Setup socket
-        int listenfd;
-        listenfd = create_and_bind(local_addr, local_port);
-        if (listenfd < 0) {
-            FATAL("bind() error");
+    listen_ctx_t * listen_ctxs = malloc(sizeof(listen_ctx_t) * (dscp_num + 1));
+
+    for (int k = -1; k < dscp_num; ++k) {
+        char *listen_port = (k >= 0) ? dscp[k].port : local_port;
+        listen_ctx_t *listen_ctx = listen_ctxs + k + 1;
+
+        // Setup proxy context
+        listen_ctx->remote_num  = remote_num;
+        listen_ctx->remote_addr = malloc(sizeof(struct sockaddr *) * remote_num);
+        for (int i = 0; i < remote_num; i++) {
+            char *host = remote_addr[i].host;
+            char *port = remote_addr[i].port == NULL ? remote_port :
+                         remote_addr[i].port;
+            struct sockaddr_storage *storage = malloc(sizeof(struct sockaddr_storage));
+            memset(storage, 0, sizeof(struct sockaddr_storage));
+            if (get_sockaddr(host, port, storage, 1) == -1) {
+                FATAL("failed to resolve the provided hostname");
+            }
+            listen_ctx->remote_addr[i] = (struct sockaddr *)storage;
         }
-        if (listen(listenfd, SOMAXCONN) == -1) {
-            FATAL("listen() error");
+        listen_ctx->timeout = atoi(timeout);
+        listen_ctx->method  = m;
+        listen_ctx->tos = (k >= 0) ? dscp[k].dscp << 2 : -1;
+
+        if (mode != UDP_ONLY) {
+            // Setup socket
+            int listenfd;
+            listenfd = create_and_bind(local_addr, listen_port);
+            if (listenfd < 0) {
+                FATAL("bind() error");
+            }
+
+            if (listen(listenfd, SOMAXCONN) == -1) {
+                FATAL("listen() error");
+            }
+            setnonblocking(listenfd);
+
+            listen_ctx->fd = listenfd;
+
+            ev_io_init(&listen_ctx->io, accept_cb, listenfd, EV_READ);
+            ev_io_start(loop, &listen_ctx->io);
         }
-        setnonblocking(listenfd);
 
-        listen_ctx.fd = listenfd;
+        // Setup UDP
+        if (mode != TCP_ONLY) {
+            LOGI("UDP relay enabled");
+            init_udprelay(local_addr, listen_port, listen_ctx->remote_addr[0],
+                          get_sockaddr_len(listen_ctx->remote_addr[0]), m, auth, listen_ctx->timeout, NULL);
+        }
 
-        ev_io_init(&listen_ctx.io, accept_cb, listenfd, EV_READ);
-        ev_io_start(loop, &listen_ctx.io);
+        if (mode == UDP_ONLY) {
+            LOGI("TCP relay disabled");
+        }
+
+        if (k >= 0) {
+            LOGI("listening at %s:%s (DSCP 0x%x)", local_addr, listen_port, dscp[k].dscp);
+        } else {
+            LOGI("listening at %s:%s (Default DSCP)", local_addr, listen_port);
+        }
     }
-
-    // Setup UDP
-    if (mode != TCP_ONLY) {
-        LOGI("UDP relay enabled");
-        init_udprelay(local_addr, local_port, listen_ctx.remote_addr[0],
-                      get_sockaddr_len(listen_ctx.remote_addr[0]), m, auth, listen_ctx.timeout, NULL);
-    }
-
-    if (mode == UDP_ONLY) {
-        LOGI("TCP relay disabled");
-    }
-
-    LOGI("listening at %s:%s", local_addr, local_port);
 
     // setuid
     if (user != NULL) {
