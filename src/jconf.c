@@ -236,9 +236,9 @@ jconf_t *read_jconf(const char *file)
                         json_value *v = value->u.object.values[j].value;
                         if (v->type == json_string) {
                             int dscp = parse_dscp(to_string(v));
-                            char * port = ss_strndup(value->u.object.values[j].name,
-                                        value->u.object.values[j].name_length);
-                            conf.dscp[j].port = atoi(port);
+                            char *port = ss_strndup(value->u.object.values[j].name,
+                                    value->u.object.values[j].name_length);
+                            conf.dscp[j].port = port;
                             conf.dscp[j].dscp = dscp;
                             conf.dscp_num = j + 1;
                         }
