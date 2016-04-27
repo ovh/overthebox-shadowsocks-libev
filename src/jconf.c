@@ -97,6 +97,40 @@ void parse_addr(const char *str, ss_addr_t *addr)
     }
 }
 
+static int parse_dscp(char *str)
+{
+    size_t str_len = strlen(str);
+
+    // Pre-defined values (EF, CSx, AFxy)
+    if (str_len == 2 && strcasecmp(str, "EF") == 0) {
+        return DSCP_EF;
+    }
+
+    if (str_len == DSCP_CS_LEN && strncasecmp(str, "CS", 2) == 0) {
+        if (str[2] >= '0' && str[2] <= '7') {
+            // CSx = 8x
+            return (str[2] - '0') << 3;
+        }
+    }
+
+    if (str_len == DSCP_AF_LEN && strncasecmp(str, "AF", 2) == 0) {
+        if (str[2] >= '1' && str[2] <= '4' && str[3] >= '1' && str[3] <= '3') {
+            // AFxy = 8x + 2y
+            return ((str[2] - '0') << 3) | ((str[3] - '0') << 1);
+        }
+    }
+
+    // Manual hexadecimal mode (0xYZ)
+    char *endptr;
+    int dscp = (int)strtol(str, &endptr, 0);
+    if (*endptr == '\0' && dscp >= DSCP_MIN && dscp <= DSCP_MAX) {
+        return dscp;
+    }
+
+    LOGE("Invalid DSCP value (%s)", str);
+    return DSCP_DEFAULT;
+}
+
 jconf_t *read_jconf(const char *file)
 {
     static jconf_t conf;
@@ -193,6 +227,29 @@ jconf_t *read_jconf(const char *file)
                 conf.nofile = value->u.integer;
             } else if (strcmp(name, "nameserver") == 0) {
                 conf.nameserver = to_string(value);
+            } else if (strcmp(name, "dscp") == 0) {
+                if (value->type == json_object) {
+                    for (j = 0; j < value->u.object.length; j++) {
+                        if (j >= MAX_DSCP_NUM) {
+                            break;
+                        }
+                        json_value *v = value->u.object.values[j].value;
+                        if (v->type == json_string) {
+                            int dscp = parse_dscp(to_string(v));
+                            char *port = ss_strndup(value->u.object.values[j].name,
+                                    value->u.object.values[j].name_length);
+                            conf.dscp[j].port = port;
+                            conf.dscp[j].dscp = dscp;
+                            conf.dscp_num = j + 1;
+                        }
+                    }
+                }
+            } else if (strcmp(name, "mptcp") == 0) {
+                conf.mptcp = value->u.boolean;
+            } else if (strcmp(name, "monitoring_ip") == 0) {
+                if (inet_pton(AF_INET, to_string(value), &conf.monitor_addr) != 1) {
+                    FATAL("Invalid monitoring IPv4 address");
+                }
             }
         }
     } else {
