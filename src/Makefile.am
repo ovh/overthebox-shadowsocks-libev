@@ -85,6 +85,7 @@ ss_tunnel_SOURCES += win32.c
 endif
 
 if BUILD_REDIRECTOR
+bin_SCRIPTS = ss-nat
 bin_PROGRAMS += ss-redir
 ss_redir_SOURCES = utils.c \
                    jconf.c \
@@ -103,9 +104,9 @@ ss_redir_LDADD += $(top_builddir)/libudns/libudns.la
 endif
 endif
 
-lib_LTLIBRARIES = libshadowsocks.la
-libshadowsocks_la_SOURCES = $(ss_local_SOURCES)
-libshadowsocks_la_CFLAGS = $(ss_local_CFLAGS) -DLIB_ONLY
-libshadowsocks_la_LDFLAGS = -version-info $(VERSION_INFO)
-libshadowsocks_la_LIBADD = $(ss_local_LDADD)
+lib_LTLIBRARIES = libshadowsocks-libev.la
+libshadowsocks_libev_la_SOURCES = $(ss_local_SOURCES)
+libshadowsocks_libev_la_CFLAGS = $(ss_local_CFLAGS) -DLIB_ONLY
+libshadowsocks_libev_la_LDFLAGS = -version-info $(VERSION_INFO)
+libshadowsocks_libev_la_LIBADD = $(ss_local_LDADD)
 include_HEADERS = shadowsocks.h
