@@ -31,7 +31,8 @@ override_dh_strip:
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
-        --enable-shared
+        --enable-shared \
+        --enable-connmarktos
 
 override_dh_installinit:
 	dh_installinit
