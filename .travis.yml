@@ -6,25 +6,25 @@ compiler:
 addons:
   apt:
     packages:
-      - autoconf
-      - libtool
-      - libssl-dev
-      - gawk 
-      - debhelper 
-      - dh-systemd 
-      - init-system-helpers 
-      - pkg-config 
-      - asciidoc 
-      - xmlto
+    - autoconf
+    - libtool
+    - libssl-dev
+    - gawk
+    - debhelper
+    - dh-systemd
+    - init-system-helpers
+    - pkg-config
+    - asciidoc
+    - xmlto
 script:
 - dpkg-buildpackage -b -us -uc -i
 deploy:
   provider: releases
   api_key:
-    secure: FaJ1w6PajemGdNfTQd/cM8U2OSVwWTa3O99ynhx6xr+Av2FYp3y32kWQqEb5LRYE7bI7r5ppJb2+F5rVZymnL1Ly8Tz/6X4CN9GPJgRrFR+3riQ3AI8VwWgfg7cD3GjaF5dX9mmXS/W+rRaWKZ7kmP5lpD/Z8lDhjR2pwNTCjRJH1xcquiJhvZwdVzvxS82JvO/ZLOKZH/QuIvHGNpc0NfQPJBPkJhZlo7h5FPhQ5QcbcENJB13iEwXqQwp6CLH4vZvq+BjLdanlUiPEN1pIsVeND/AeM+9h90HB2T3VCWWjHWSMXHDhB5ArwHloBr/xUZBl4bpjakX2rK2+iKXitJ8cRKPjgXjGlbEypVdOcyr+tSF9ULrZ08jJ1gbp5Z0qVmmOBiwCv4vHAfPpluQ+6igtle+OcY8bLkkoWWxYKGkrHjIW896WjHhSGyPgNLrnxgUJ7S9OdAAzzWgDVsvpNPoA16Si7vOvMPlv6B9UUq7N7dKPDzyy6USZhgcDEg1Apud8OG72BDB2b7NeU2huEw26zO+MUN0bPBOo45Jtdv2iSsCQ5pFs1bdv/S7C3+ufu6erw8kFlG+NCieHYKGkSWbl3k7tEaCP/jy8n0FhPw+C28TPmt6mT3YoQW4s5VL/BWS5fE3Jh5jH3ON1He51VojnjYmriCDjQjONuOsbxM0=
+    secure: qwQu/39CxD38QotylRj1k9ujRieB/a9nMExDXKAwUgtGQ1iDxeKcWRKGf5dw2PYgVHMrfGj7/46QIYQw1rDeL85G6kM/TCGRYoaiZS2nRQ636GMSaL0/lAmoFCtvoV0CBiYcYgskxcM5Ezx1f9XqBusAviYMgnMJ+OTojKjUb6qvRMWRlc6vDpQ6Ym+zUnwTBskxPt7ypo9aNYVx+G1n9PCNfw03XumYBrt5Tab/bJDjI+AtFn/R5b9nS8oUdgeyHqTxE2qpfP8aOlRWs9g/D3mxeT2koy688PJaa92vUfd8+xn/RauG5omDOCckvM5zzI2tGcuJeAdspJUwvpJuLK4A1sjB8EZkfvLswspqmnZRFyWdlTTA1mF9ailkZYLvxv/XOCmmIoakuSaKwErvGvliPrZSfhnD+YKpMCbPVzsdNcjf8PCnHxNAvyWukMMhXCy1gXbiCRGtSvFBorPVM3uhLNRkFXNTWZl5LtaRf2oyHTqxgU9n7+GCv9vmjyujYpqriJ0xGP2+tpJQxgEQ5bzWbL6ZyaH+/PGuCfsKWpiW2RCkHppNPYZVf79qxAusFAqXIInYbqMN3REm0R8rYH6cl1SEnB9EJB+f65KojpoM5bIRp8P28NDi2SNenrLCqOXY3vcTKMYB/h8NNsQtVTl5+6IZUek7/rwqDfxpOyE=
+  file: "../*.deb"
   skip_cleanup: true
   file_glob: true
-  file: "../*.deb"
   on:
     all_branches: true
     tags: true
