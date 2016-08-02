@@ -1,5 +1,20 @@
+sudo: required
+dist: trusty
 language: c
 compiler:
-    - gcc
-script: "./configure && make"
-
+- gcc
+- clang
+script:
+- dpkg-buildpackage -b -us -uc -i
+branches:
+  only:
+  - stable
+deploy:
+  provider: releases
+  api_key:
+    secure: FaJ1w6PajemGdNfTQd/cM8U2OSVwWTa3O99ynhx6xr+Av2FYp3y32kWQqEb5LRYE7bI7r5ppJb2+F5rVZymnL1Ly8Tz/6X4CN9GPJgRrFR+3riQ3AI8VwWgfg7cD3GjaF5dX9mmXS/W+rRaWKZ7kmP5lpD/Z8lDhjR2pwNTCjRJH1xcquiJhvZwdVzvxS82JvO/ZLOKZH/QuIvHGNpc0NfQPJBPkJhZlo7h5FPhQ5QcbcENJB13iEwXqQwp6CLH4vZvq+BjLdanlUiPEN1pIsVeND/AeM+9h90HB2T3VCWWjHWSMXHDhB5ArwHloBr/xUZBl4bpjakX2rK2+iKXitJ8cRKPjgXjGlbEypVdOcyr+tSF9ULrZ08jJ1gbp5Z0qVmmOBiwCv4vHAfPpluQ+6igtle+OcY8bLkkoWWxYKGkrHjIW896WjHhSGyPgNLrnxgUJ7S9OdAAzzWgDVsvpNPoA16Si7vOvMPlv6B9UUq7N7dKPDzyy6USZhgcDEg1Apud8OG72BDB2b7NeU2huEw26zO+MUN0bPBOo45Jtdv2iSsCQ5pFs1bdv/S7C3+ufu6erw8kFlG+NCieHYKGkSWbl3k7tEaCP/jy8n0FhPw+C28TPmt6mT3YoQW4s5VL/BWS5fE3Jh5jH3ON1He51VojnjYmriCDjQjONuOsbxM0=
+  skip_cleanup: true
+  file_glob: true
+  file: "../*.deb"
+  on:
+    branch: stable
