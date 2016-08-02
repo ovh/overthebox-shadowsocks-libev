@@ -18,9 +18,6 @@ addons:
       - xmlto
 script:
 - dpkg-buildpackage -b -us -uc -i
-branches:
-  only:
-  - stable
 deploy:
   provider: releases
   api_key:
