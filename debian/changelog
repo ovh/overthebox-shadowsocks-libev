@@ -1,3 +1,9 @@
+shadowsocks-libev (2.4.7-2) unstable; urgency=low
+
+  * Add dscp
+
+ -- Simon Lelievre <simon.lelievre@corp.ovh.com>  Tue, 2 Aug 2016 18:21:45 +0800
+
 shadowsocks-libev (2.4.7-1) unstable; urgency=low
 
   * Add ss-nat, a helper script to set up NAT rules for ss-redir.
