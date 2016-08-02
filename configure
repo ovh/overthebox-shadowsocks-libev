@@ -796,6 +796,7 @@ with_mbedtls_lib
 enable_applecc
 enable_ssp
 enable_assert
+enable_connmarktos
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1445,6 +1446,7 @@ Optional Features:
   --enable-applecc        enable Apple CommonCrypto API support
   --disable-ssp           Do not compile with -fstack-protector
   --disable-assert        turn off assertions
+  --enable-connmarktos    Enable saved connmark to IP TOS QoS feature
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -2457,8 +2459,8 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 
 
-# expand $ac_aux_dir to an absolute path
-am_aux_dir=`cd $ac_aux_dir && pwd`
+# Expand $ac_aux_dir to an absolute path.
+am_aux_dir=`cd "$ac_aux_dir" && pwd`
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -4534,6 +4536,7 @@ END
     as_fn_error $? "Your 'rm' program is bad, sorry." "$LINENO" 5
   fi
 fi
+
 if test -n "$ac_tool_prefix"; then
   for ac_prog in ar lib "link -lib"
   do
@@ -15592,6 +15595,117 @@ if test -z "$USE_SYSTEM_SHARED_LIB_TRUE"; then :
   ac_config_files="$ac_config_files libudns/Makefile libev/Makefile"
 
 fi
+
+
+# Check whether --enable-connmarktos was given.
+if test "${enable_connmarktos+set}" = set; then :
+  enableval=$enable_connmarktos;
+  enable_connmarktos="yes"
+
+else
+
+  enable_connmarktos="no"
+
+fi
+
+
+if test x"$enable_connmarktos" = "xyes" ; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: Linux Netfilter Conntrack support requested by --enable-connmarktos: ${enable_connmarktos}" >&5
+$as_echo "$as_me: Linux Netfilter Conntrack support requested by --enable-connmarktos: ${enable_connmarktos}" >&6;}
+	if test "x$enable_connmarktos" != "xno"; then
+	    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing nfct_query" >&5
+$as_echo_n "checking for library containing nfct_query... " >&6; }
+if ${ac_cv_search_nfct_query+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char nfct_query ();
+int
+main ()
+{
+return nfct_query ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' netfilter_conntrack; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_nfct_query=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_nfct_query+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_nfct_query+:} false; then :
+
+else
+  ac_cv_search_nfct_query=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_nfct_query" >&5
+$as_echo "$ac_cv_search_nfct_query" >&6; }
+ac_res=$ac_cv_search_nfct_query
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+else
+
+	        if test x"$enable_connmarktos" = "xyes"; then
+	            as_fn_error $? "--enable-connmarktos specified but libnetfilter-conntrack library not found" "$LINENO" 5
+	        fi
+	        with_netfilter_conntrack=no
+fi
+
+	    for ac_header in libnetfilter_conntrack/libnetfilter_conntrack.h \
+	        libnetfilter_conntrack/libnetfilter_conntrack_tcp.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+else
+
+	        if test x"$enable_connmarktos" = "xyes"; then
+	            as_fn_error $? "--enable-connmarktos specified but libnetfilter-conntrack headers not found" "$LINENO" 5
+	        fi
+	        with_netfilter_conntrack=no
+fi
+
+done
+
+	  # If nothing is broken; enable the libraries usage.
+	  if test "x$with_netfilter_conntrack" != "xno"; then
+		with_netfilter_conntrack=yes
+
+$as_echo "#define USE_NFCONNTRACK_TOS 1" >>confdefs.h
+
+	  fi
+	fi
+fi
+
+
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
 # tests run on this system so they can be shared between configure
