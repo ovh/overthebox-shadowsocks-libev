@@ -30,3 +30,4 @@ deploy:
   file: "../*.deb"
   on:
     branch: stable
+    tags: true
