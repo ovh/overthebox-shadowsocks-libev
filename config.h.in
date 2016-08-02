@@ -79,6 +79,14 @@
 /* Define to 1 if you have the <langinfo.h> header file. */
 #undef HAVE_LANGINFO_H
 
+/* Define to 1 if you have the
+   <libnetfilter_conntrack/libnetfilter_conntrack.h> header file. */
+#undef HAVE_LIBNETFILTER_CONNTRACK_LIBNETFILTER_CONNTRACK_H
+
+/* Define to 1 if you have the
+   <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h> header file. */
+#undef HAVE_LIBNETFILTER_CONNTRACK_LIBNETFILTER_CONNTRACK_TCP_H
+
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
 
@@ -321,6 +329,9 @@
 
 /* Use PolarSSL library */
 #undef USE_CRYPTO_POLARSSL
+
+/* Enable support for QOS netfilter mark preservation */
+#undef USE_NFCONNTRACK_TOS
 
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE
