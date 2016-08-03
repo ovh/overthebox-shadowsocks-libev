@@ -16,6 +16,7 @@ addons:
     - pkg-config
     - asciidoc
     - xmlto
+    - libnetfilter-conntrack-dev
 script:
 - dpkg-buildpackage -b -us -uc -i
 deploy:
