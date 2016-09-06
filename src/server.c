@@ -42,7 +42,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <pthread.h>
 #include <sys/un.h>
 #endif
@@ -116,8 +115,10 @@ static void close_and_free_remote(EV_P_ remote_t *remote);
 static void free_server(server_t *server);
 static void close_and_free_server(EV_P_ server_t *server);
 static void server_resolve_cb(struct sockaddr *addr, void *data);
+static void query_free_cb(void *data);
 
 static size_t parse_header_len(const char atyp, const char *data, size_t offset);
+static int is_header_complete(const buffer_t *buf);
 
 int verbose = 0;
 
@@ -245,6 +246,42 @@ static size_t parse_header_len(const char atyp, const char *data, size_t offset)
     }
     len += 2;
     return len;
+}
+
+static int is_header_complete(const buffer_t *buf)
+{
+    size_t header_len = 0;
+    size_t buf_len    = buf->len;
+
+    char atyp = buf->array[header_len];
+
+    // 1 byte for atyp
+    header_len++;
+
+    if ((atyp & ADDRTYPE_MASK) == 1) {
+        // IP V4
+        header_len += sizeof(struct in_addr);
+    } else if ((atyp & ADDRTYPE_MASK) == 3) {
+        // Domain name
+        // domain len + len of domain
+        if (buf_len < header_len + 1)
+            return 0;
+        uint8_t name_len = *(uint8_t *)(buf->array + header_len);
+        header_len += name_len + 1;
+    } else if ((atyp & ADDRTYPE_MASK) == 4) {
+        // IP V6
+        header_len += sizeof(struct in6_addr);
+    }
+
+    // len of port
+    header_len += 2;
+
+    // size of ONETIMEAUTH_BYTES
+    if (auth || (atyp & ONETIMEAUTH_FLAG)) {
+        header_len += ONETIMEAUTH_BYTES;
+    }
+
+    return buf_len >= header_len;
 }
 
 static char *get_peer_name(int fd)
@@ -380,7 +417,7 @@ int create_and_bind(const char *host, const char *port, int mptcp)
 #endif
         int err = set_reuseport(listen_sock);
         if (err == 0) {
-            LOGI("port reuse enabled");
+            LOGI("tcp port reuse enabled");
         }
 
         if (mptcp == 1) {
@@ -425,9 +462,9 @@ static remote_t *connect_to_remote(struct addrinfo *res,
     const char *iface = server->listen_ctx->iface;
 #endif
 
-    // initilize remote socks
+    // initialize remote socks
     sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (sockfd < 0) {
+    if (sockfd == -1) {
         ERROR("socket");
         close(sockfd);
         return NULL;
@@ -438,6 +475,7 @@ static remote_t *connect_to_remote(struct addrinfo *res,
 #ifdef SO_NOSIGPIPE
     setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof(opt));
 #endif
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     remote_t *remote = new_remote(sockfd);
 
@@ -506,7 +544,7 @@ static remote_t *connect_to_remote(struct addrinfo *res,
     if (!fast_open) {
         int r = connect(sockfd, res->ai_addr, res->ai_addrlen);
 
-        if (r < 0 && errno != CONNECT_IN_PROGRESS) {
+        if (r == -1 && errno != CONNECT_IN_PROGRESS) {
             ERROR("connect");
             close(sockfd);
             return NULL;
@@ -616,7 +654,7 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
 
     ev_timer_again(EV_A_ & server->recv_ctx->watcher);
 
-    if (server->stage != 0) {
+    if (server->stage > 2) {
         remote = server->remote;
         buf    = remote->buf;
         len    = 0;
@@ -647,16 +685,16 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
 
     tx += r;
 
-    // handle incomplete header
+    // handle incomplete header part 1
     if (server->stage == 0) {
         buf->len += r;
-        if (buf->len <= enc_get_iv_len()) {
+        if (buf->len <= enc_get_iv_len() + 1) {
             // wait for more
             if (verbose) {
 #ifdef __MINGW32__
-                LOGI("imcomplete header: %u", r);
+                LOGI("incomplete IV: %u", r);
 #else
-                LOGI("imcomplete header: %zu", r);
+                LOGI("incomplete IV: %zu", r);
 #endif
             }
             return;
@@ -673,6 +711,42 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
         close_and_free_remote(EV_A_ remote);
         close_and_free_server(EV_A_ server);
         return;
+    }
+
+    // handle incomplete header part 2
+    if (server->stage == 0) {
+        if (is_header_complete(server->buf)) {
+            bfree(server->header_buf);
+            ss_free(server->header_buf);
+            server->stage = 2;
+        } else {
+            server->stage = 1;
+        }
+    }
+    if (server->stage == 1) {
+        size_t header_len = server->header_buf->len;
+        brealloc(server->header_buf, server->buf->len + header_len, BUF_SIZE);
+        memcpy(server->header_buf->array + header_len,
+               server->buf->array, server->buf->len);
+        server->header_buf->len = server->buf->len + header_len;
+
+        if (is_header_complete(server->header_buf)) {
+            brealloc(server->buf, server->header_buf->len, BUF_SIZE);
+            memcpy(server->buf->array, server->header_buf->array, server->header_buf->len);
+            server->buf->len = server->header_buf->len;
+            bfree(server->header_buf);
+            ss_free(server->header_buf);
+            server->stage = 2;
+        } else {
+#ifdef __MINGW32__
+            LOGI("incomplete header: %u", server->header_buf->len);
+#else
+            LOGI("incomplete header: %zu", server->header_buf->len);
+#endif
+            server->buf->len = 0;
+            server->buf->idx = 0;
+            return;
+        }
     }
 
     // handshake and transmit data
@@ -703,7 +777,7 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
             ev_io_start(EV_A_ & remote->send_ctx->io);
         }
         return;
-    } else if (server->stage == 0) {
+    } else if (server->stage == 2) {
         /*
          * Shadowsocks TCP Relay Header:
          *
@@ -713,7 +787,7 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
          *    |  1   | Variable |    2     |      10        |
          *    +------+----------+----------+----------------+
          *
-         *    If ATYP & ONETIMEAUTH_FLAG(0x10) == 1, Authentication (HMAC-SHA1) is enabled.
+         *    If ATYP & ONETIMEAUTH_FLAG(0x10) != 0, Authentication (HMAC-SHA1) is enabled.
          *
          *    The key of HMAC-SHA1 is (IV + KEY) and the input is the whole header.
          *    The output of HMAC-SHA is truncated to 10 bytes (leftmost bits).
@@ -736,7 +810,7 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
         int offset     = 0;
         int need_query = 0;
         char atyp      = server->buf->array[offset++];
-        char host[256] = { 0 };
+        char host[257] = { 0 };
         uint16_t port  = 0;
         struct addrinfo info;
         struct sockaddr_storage storage;
@@ -944,7 +1018,7 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
         }
 
         if (!need_query) {
-            int connected = 0;
+            int connected    = 0;
             remote_t *remote = connect_to_remote(&info, server, &connected);
 
             if (remote == NULL) {
@@ -975,9 +1049,13 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
                 }
             }
         } else {
+            query_t *query = (query_t *)ss_malloc(sizeof(query_t));
+            query->server = server;
+            snprintf(query->hostname, 256, "%s", host);
+
             server->stage = 4;
-            server->query = resolv_query(host, server_resolve_cb, NULL, server,
-                                         port);
+            server->query = resolv_query(host, server_resolve_cb,
+                                         query_free_cb, query, port);
 
             ev_io_stop(EV_A_ & server_recv_ctx->io);
         }
@@ -1012,7 +1090,7 @@ static void server_send_cb(EV_P_ ev_io *w, int revents)
         // has data to send
         ssize_t s = send(server->fd, server->buf->array + server->buf->idx,
                          server->buf->len, 0);
-        if (s < 0) {
+        if (s == -1) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 ERROR("server_send_send");
                 close_and_free_remote(EV_A_ remote);
@@ -1059,19 +1137,27 @@ static void server_timeout_cb(EV_P_ ev_timer *watcher, int revents)
     close_and_free_server(EV_A_ server);
 }
 
+static void query_free_cb(void *data)
+{
+    if (data != NULL) {
+        ss_free(data);
+    }
+}
+
 static void server_resolve_cb(struct sockaddr *addr, void *data)
 {
-    server_t *server     = (server_t *)data;
+    query_t *query       = (query_t *)data;
+    server_t *server     = query->server;
     struct ev_loop *loop = server->listen_ctx->loop;
 
     server->query = NULL;
 
     if (addr == NULL) {
-        LOGE("unable to resolve");
+        LOGE("unable to resolve %s", query->hostname);
         close_and_free_server(EV_A_ server);
     } else {
         if (verbose) {
-            LOGI("udns resolved");
+            LOGI("successfully resolved %s", query->hostname);
         }
 
         struct addrinfo info;
@@ -1088,7 +1174,7 @@ static void server_resolve_cb(struct sockaddr *addr, void *data)
             info.ai_addrlen = sizeof(struct sockaddr_in6);
         }
 
-        int connected = 0;
+        int connected    = 0;
         remote_t *remote = connect_to_remote(&info, server, &connected);
 
         if (remote == NULL) {
@@ -1142,7 +1228,7 @@ static void remote_recv_cb(EV_P_ ev_io *w, int revents)
         close_and_free_remote(EV_A_ remote);
         close_and_free_server(EV_A_ server);
         return;
-    } else if (r < 0) {
+    } else if (r == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             // no data
             // continue to wait for recv
@@ -1183,14 +1269,17 @@ static void remote_recv_cb(EV_P_ ev_io *w, int revents)
             close_and_free_remote(EV_A_ remote);
             close_and_free_server(EV_A_ server);
         }
-        return;
     } else if (s < server->buf->len) {
         server->buf->len -= s;
         server->buf->idx  = s;
         ev_io_stop(EV_A_ & remote_recv_ctx->io);
         ev_io_start(EV_A_ & server->send_ctx->io);
-        return;
     }
+
+    // Disable TCP_NODELAY after the first response are sent
+    int opt = 0;
+    setsockopt(server->fd, SOL_TCP, TCP_NODELAY, &opt, sizeof(opt));
+    setsockopt(remote->fd, SOL_TCP, TCP_NODELAY, &opt, sizeof(opt));
 }
 
 static void remote_send_cb(EV_P_ ev_io *w, int revents)
@@ -1347,6 +1436,7 @@ static server_t *new_server(int fd, listen_ctx_t *listener)
     server->recv_ctx            = ss_malloc(sizeof(server_ctx_t));
     server->send_ctx            = ss_malloc(sizeof(server_ctx_t));
     server->buf                 = ss_malloc(sizeof(buffer_t));
+    server->header_buf          = ss_malloc(sizeof(buffer_t));
     server->fd                  = fd;
     server->recv_ctx->server    = server;
     server->recv_ctx->connected = 0;
@@ -1374,6 +1464,7 @@ static server_t *new_server(int fd, listen_ctx_t *listener)
                   min(MAX_CONNECT_TIMEOUT, listener->timeout), listener->timeout);
 
     balloc(server->buf, BUF_SIZE);
+    balloc(server->header_buf, BUF_SIZE);
 
     server->chunk = (chunk_t *)malloc(sizeof(chunk_t));
     memset(server->chunk, 0, sizeof(chunk_t));
@@ -1421,6 +1512,10 @@ static void free_server(server_t *server)
     if (server->buf != NULL) {
         bfree(server->buf);
         ss_free(server->buf);
+    }
+    if (server->header_buf != NULL) {
+        bfree(server->header_buf);
+        ss_free(server->header_buf);
     }
 
     ss_free(server->recv_ctx);
@@ -1497,6 +1592,8 @@ int main(int argc, char **argv)
 {
     int i, c;
     int pid_flags   = 0;
+    int mptcp       = 0;
+    int mtu         = 0;
     char *user      = NULL;
     char *password  = NULL;
     char *timeout   = NULL;
@@ -1513,14 +1610,15 @@ int main(int argc, char **argv)
 
     char *nameservers[MAX_DNS_NUM + 1];
     int nameserver_num = 0;
-    int mptcp = 0;
 
     int option_index                    = 0;
     static struct option long_options[] = {
-        { "fast-open"      , no_argument      , 0, 0 },
-        { "acl"            , required_argument, 0, 0 },
+        { "fast-open",       no_argument,       0, 0 },
+        { "acl",             required_argument, 0, 0 },
         { "manager-address", required_argument, 0, 0 },
-        { "help"           , no_argument      , 0, 0 },
+        { "mtu",             required_argument, 0, 0 },
+        { "mptcp",           no_argument,       0, 0 },
+        { "help",            no_argument,       0, 0 },
         {                 0,                 0, 0, 0 }
     };
 
@@ -1541,6 +1639,12 @@ int main(int argc, char **argv)
             } else if (option_index == 2) {
                 manager_address = optarg;
             } else if (option_index == 3) {
+                mtu = atoi(optarg);
+                LOGI("set MTU to %d", mtu);
+            } else if (option_index == 4) {
+                mptcp = 1;
+                LOGI("enable multipath TCP");
+            } else if (option_index == 5) {
                 usage();
                 exit(EXIT_SUCCESS);
             }
@@ -1611,6 +1715,7 @@ int main(int argc, char **argv)
             break;
         case '?':
             // The option character is not recognized.
+            LOGE("Unrecognized option: %s", optarg);
             opterr = 1;
             break;
         }
@@ -1651,6 +1756,15 @@ int main(int argc, char **argv)
         if (auth == 0) {
             auth = conf->auth;
         }
+        if (mode == TCP_ONLY) {
+            mode = conf->mode;
+        }
+        if (mtu == 0) {
+            mtu = conf->mtu;
+        }
+        if (mptcp == 0) {
+            mptcp = conf->mptcp;
+        }
 #ifdef TCP_FASTOPEN
         if (fast_open == 0) {
             fast_open = conf->fast_open;
@@ -1659,19 +1773,6 @@ int main(int argc, char **argv)
 #ifdef HAVE_SETRLIMIT
         if (nofile == 0) {
             nofile = conf->nofile;
-        }
-
-        mptcp = conf->mptcp;
-
-        /*
-         * no need to check the return value here since we will show
-         * the user an error message if setrlimit(2) fails
-         */
-        if (nofile > 1024) {
-            if (verbose) {
-                LOGI("setting NOFILE to %d", nofile);
-            }
-            set_nofile(nofile);
         }
 #endif
         if (conf->nameserver != NULL) {
@@ -1697,6 +1798,19 @@ int main(int argc, char **argv)
     if (timeout == NULL) {
         timeout = "60";
     }
+
+#ifdef HAVE_SETRLIMIT
+    /*
+     * no need to check the return value here since we will show
+     * the user an error message if setrlimit(2) fails
+     */
+    if (nofile > 1024) {
+        if (verbose) {
+            LOGI("setting NOFILE to %d", nofile);
+        }
+        set_nofile(nofile);
+    }
+#endif
 
     if (pid_flags) {
         USE_SYSLOG(argv[0]);
@@ -1747,7 +1861,7 @@ int main(int argc, char **argv)
     LOGI("initializing ciphers... %s", method);
     int m = enc_init(password, method);
 
-    // inilitialize ev loop
+    // initialize ev loop
     struct ev_loop *loop = EV_DEFAULT;
 
     // setup udns
@@ -1765,7 +1879,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < nameserver_num; i++)
         LOGI("using nameserver: %s", nameservers[i]);
 
-    // inilitialize listen context
+    // initialize listen context
     listen_ctx_t listen_ctx_list[server_num];
 
     // bind to each interface
@@ -1777,7 +1891,7 @@ int main(int argc, char **argv)
             // Bind to port
             int listenfd;
             listenfd = create_and_bind(host, server_port, mptcp);
-            if (listenfd < 0) {
+            if (listenfd == -1) {
                 FATAL("bind() error");
             }
             if (listen(listenfd, SSMAXCONN) == -1) {
@@ -1801,8 +1915,8 @@ int main(int argc, char **argv)
 
         // Setup UDP
         if (mode != TCP_ONLY) {
-            init_udprelay(server_host[index], server_port, m, auth, atoi(timeout),
-                          iface);
+            init_udprelay(server_host[index], server_port, mtu, m,
+                          auth, atoi(timeout), iface);
         }
 
         LOGI("listening at %s:%s", host ? host : "*", server_port);

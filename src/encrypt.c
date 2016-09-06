@@ -107,6 +107,9 @@ static const char *supported_ciphers[CIPHER_NUM] = {
     "aes-128-cfb",
     "aes-192-cfb",
     "aes-256-cfb",
+    "aes-128-ctr",
+    "aes-192-ctr",
+    "aes-256-ctr",
     "bf-cfb",
     "camellia-128-cfb",
     "camellia-192-cfb",
@@ -129,6 +132,9 @@ static const char *supported_ciphers_polarssl[CIPHER_NUM] = {
     "AES-128-CFB128",
     "AES-192-CFB128",
     "AES-256-CFB128",
+    "AES-128-CTR",
+    "AES-192-CTR",
+    "AES-256-CTR",
     "BLOWFISH-CFB64",
     "CAMELLIA-128-CFB128",
     "CAMELLIA-192-CFB128",
@@ -152,6 +158,9 @@ static const char *supported_ciphers_mbedtls[CIPHER_NUM] = {
     "AES-128-CFB128",
     "AES-192-CFB128",
     "AES-256-CFB128",
+    "AES-128-CTR",
+    "AES-192-CTR",
+    "AES-256-CTR",
     "BLOWFISH-CFB64",
     "CAMELLIA-128-CFB128",
     "CAMELLIA-192-CFB128",
@@ -175,6 +184,9 @@ static const CCAlgorithm supported_ciphers_applecc[CIPHER_NUM] = {
     kCCAlgorithmAES,
     kCCAlgorithmAES,
     kCCAlgorithmAES,
+    kCCAlgorithmAES,
+    kCCAlgorithmAES,
+    kCCAlgorithmAES,
     kCCAlgorithmBlowfish,
     kCCAlgorithmInvalid,
     kCCAlgorithmInvalid,
@@ -189,14 +201,37 @@ static const CCAlgorithm supported_ciphers_applecc[CIPHER_NUM] = {
     kCCAlgorithmInvalid
 };
 
+static const CCMode supported_modes_applecc[CIPHER_NUM] = {
+    kCCAlgorithmInvalid,
+    kCCAlgorithmInvalid,
+    kCCModeRC4,
+    kCCModeCFB,
+    kCCModeCFB,
+    kCCModeCFB,
+    kCCModeCTR,
+    kCCModeCTR,
+    kCCModeCTR,
+    kCCModeCFB,
+    kCCAlgorithmInvalid,
+    kCCAlgorithmInvalid,
+    kCCAlgorithmInvalid,
+    kCCModeCFB,
+    kCCModeCFB,
+    kCCModeCFB,
+    kCCModeCFB,
+    kCCAlgorithmInvalid,
+    kCCAlgorithmInvalid,
+    kCCAlgorithmInvalid,
+    kCCAlgorithmInvalid
+};
 #endif
 
 static const int supported_ciphers_iv_size[CIPHER_NUM] = {
-    0, 0, 16, 16, 16, 16, 8, 16, 16, 16, 8, 8, 8, 8, 16, 8, 8, 12
+    0, 0, 16, 16, 16, 16, 16, 16, 16, 8, 16, 16, 16, 8, 8, 8, 8, 16, 8, 8, 12
 };
 
 static const int supported_ciphers_key_size[CIPHER_NUM] = {
-    0, 16, 16, 16, 24, 32, 16, 16, 24, 32, 16, 8, 16, 16, 16, 32, 32, 32
+    0, 16, 16, 16, 24, 32, 16, 24, 32, 16, 16, 24, 32, 16, 8, 16, 16, 16, 32, 32, 32
 };
 
 static int safe_memcmp(const void *s1, const void *s2, size_t n)
@@ -845,11 +880,15 @@ void cipher_context_init(cipher_ctx_t *ctx, int method, int enc)
     } else {
         cc->valid = kCCContextValid;
         if (cc->cipher == kCCAlgorithmRC4) {
-            cc->mode    = kCCModeRC4;
+            cc->mode    = supported_modes_applecc[method];
             cc->padding = ccNoPadding;
         } else {
-            cc->mode    = kCCModeCFB;
-            cc->padding = ccPKCS7Padding;
+            cc->mode    = supported_modes_applecc[method];
+            if (cc->mode == kCCModeCTR) {
+                cc->padding = ccNoPadding;
+            } else {
+                cc->padding = ccPKCS7Padding;
+            }
         }
         return;
     }
@@ -947,7 +986,7 @@ void cipher_context_set_iv(cipher_ctx_t *ctx, uint8_t *iv, size_t iv_len,
             cc->cipher,
             cc->padding,
             cc->iv, cc->key, cc->key_len,
-            NULL, 0, 0, 0,
+            NULL, 0, 0, kCCModeOptionCTR_BE,
             &cc->cryptor);
         if (ret != kCCSuccess) {
             if (cc->cryptor != NULL) {
@@ -1426,7 +1465,7 @@ void enc_key_init(int method, const char *pass)
         return;
     }
 
-    // Inilitialize cache
+    // Initialize cache
     cache_create(&iv_cache, 256, NULL);
 
 #if defined(USE_CRYPTO_OPENSSL)

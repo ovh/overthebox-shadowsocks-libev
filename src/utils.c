@@ -185,6 +185,26 @@ void FATAL(const char *msg)
     exit(-1);
 }
 
+void *ss_malloc(size_t size)
+{
+    void *tmp = malloc(size);
+    if (tmp == NULL)
+        exit(EXIT_FAILURE);
+    return tmp;
+}
+
+void *ss_realloc(void *ptr, size_t new_size)
+{
+    void *new = realloc(ptr, new_size);
+    if (new == NULL) {
+        free(ptr);
+        ptr = NULL;
+        exit(EXIT_FAILURE);
+    }
+    return new;
+}
+
+
 void usage()
 {
     printf("\n");
@@ -247,15 +267,13 @@ void usage()
         "       [-b <local_address>]       Local address to bind.\n");
     printf("\n");
     printf(
-        "       [-u]                       Enable UDP relay,\n");
+        "       [-u]                       Enable UDP relay.\n");
 #ifdef MODULE_REDIR
     printf(
         "                                  TPROXY is required in redir mode.\n");
 #endif
-#ifndef MODULE_LOCAL
     printf(
         "       [-U]                       Enable UDP relay and disable TCP relay.\n");
-#endif
     printf(
         "       [-A]                       Enable onetime authentication.\n");
 #ifdef MODULE_REMOTE
@@ -291,6 +309,10 @@ void usage()
     printf(
         "       [--executable <path>]      Path to the executable of ss-server.\n");
 #endif
+    printf(
+        "       [--mtu <MTU>]              MTU of your network interface.\n");
+    printf(
+        "       [--mptcp]                  Enable Multipath TCP on MPTCP Kernel.\n");
     printf("\n");
     printf(
         "       [-v]                       Verbose mode.\n");
