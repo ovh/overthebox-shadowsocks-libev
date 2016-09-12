@@ -33,8 +33,8 @@ typedef struct listen_ctx {
     int timeout;
     int fd;
     int method;
-    struct sockaddr **remote_addr;
     int mptcp;
+    struct sockaddr **remote_addr;
     int tos;
 } listen_ctx_t;
 

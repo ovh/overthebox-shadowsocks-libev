@@ -1,5 +1,5 @@
 /*
- * server.c - Define the config data structure
+ * jconf.h - Define the config data structure
  *
  * Copyright (C) 2013 - 2016, Max Lv <max.c.lv@gmail.com>
  *
@@ -39,6 +39,10 @@
 #define DSCP_CS_LEN 3
 #define DSCP_AF_LEN 4
 
+#define TCP_ONLY     0
+#define TCP_AND_UDP  1
+#define UDP_ONLY     3
+
 #include <arpa/inet.h>
 
 typedef struct {
@@ -73,8 +77,11 @@ typedef struct {
     char *nameserver;
     int dscp_num;
     ss_dscp_t dscp[MAX_DSCP_NUM];
-    int mptcp;
     struct in_addr monitor_addr;
+    char *tunnel_address;
+    int mode;
+    int mtu;
+    int mptcp;
 } jconf_t;
 
 jconf_t *read_jconf(const char *file);

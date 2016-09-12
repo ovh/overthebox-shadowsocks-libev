@@ -54,6 +54,10 @@
 
 extern int verbose;
 
+#if defined(MODULE_LOCAL)
+extern int keep_resolving;
+#endif
+
 int set_reuseport(int socket)
 {
     int opt = 1;
@@ -87,6 +91,7 @@ int bind_to_address(int socket_fd, const char *host)
     if (host != NULL) {
         struct cork_ip ip;
         struct sockaddr_storage storage;
+        memset(&storage, 0, sizeof(storage));
         if (cork_ip_init(&ip, host) != -1) {
             if (ip.version == 4) {
                 struct sockaddr_in *addr = (struct sockaddr_in *)&storage;
@@ -136,7 +141,11 @@ ssize_t get_sockaddr(char *host, char *port, struct sockaddr_storage *storage, i
 
         for (i = 1; i < 8; i++) {
             err = getaddrinfo(host, port, &hints, &result);
-            if (!block || !err) {
+#if defined(MODULE_LOCAL)
+            if (!keep_resolving)
+                break;
+#endif
+            if ((!block || !err)) {
                 break;
             } else {
                 sleep(pow(2, i));

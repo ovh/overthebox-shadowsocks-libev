@@ -68,6 +68,7 @@ typedef struct server {
     int fd;
     int stage;
     buffer_t *buf;
+    buffer_t *header_buf;
 
     int auth;
     struct chunk *chunk;
@@ -88,6 +89,11 @@ typedef struct server {
     struct dscptracker* tracker;
 #endif
 } server_t;
+
+typedef struct query {
+    server_t *server;
+    char hostname[257];
+} query_t;
 
 typedef struct remote_ctx {
     ev_io io;

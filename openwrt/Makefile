@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=shadowsocks-libev
-PKG_VERSION:=2.4.7
+PKG_VERSION:=2.5.0
 PKG_RELEASE=$(PKG_SOURCE_VERSION)
 
 PKG_SOURCE_URL:=https://github.com/shadowsocks/shadowsocks-libev/archive
@@ -56,7 +56,7 @@ define Package/shadowsocks-libev/conffiles
 /etc/shadowsocks.json
 endef
 
-CONFIGURE_ARGS += --disable-ssp
+CONFIGURE_ARGS += --disable-documentation --disable-ssp
 
 ifeq ($(BUILD_VARIANT),polarssl)
 	CONFIGURE_ARGS += --with-crypto-library=polarssl

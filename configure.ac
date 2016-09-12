@@ -2,14 +2,14 @@ dnl                                               -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.67])
-AC_INIT([shadowsocks-libev], [2.4.7], [max.c.lv@gmail.com])
+AC_INIT([shadowsocks-libev], [2.5.0], [max.c.lv@gmail.com])
 AC_CONFIG_SRCDIR([src/encrypt.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR(auto)
 AC_CONFIG_MACRO_DIR([m4])
 AC_USE_SYSTEM_EXTENSIONS
 
-AM_INIT_AUTOMAKE([subdir-objects foreign -Wall -Werror])
+AM_INIT_AUTOMAKE([subdir-objects foreign -Wno-gnu -Werror])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AM_MAINTAINER_MODE
@@ -44,6 +44,21 @@ AC_ARG_WITH(
   ],
   [with_crypto_library="openssl"]
 )
+
+AC_ARG_ENABLE([documentation],
+  AS_HELP_STRING([--disable-documentation], [do not build documentation]),
+  [disable_documentation=true],
+  [disable_documentation=false])
+AM_CONDITIONAL([ENABLE_DOCUMENTATION], [test x$disable_documentation = xfalse])
+
+AM_COND_IF([ENABLE_DOCUMENTATION], [
+  AC_PATH_PROG([ASCIIDOC], [asciidoc], [asciidoc])
+  AC_PATH_PROG([XMLTO], [xmlto], [xmlto])
+  AC_PATH_PROG([GZIP], [gzip], [gzip])
+  AC_PATH_PROG([RM], [rm], [rm])
+  AC_PATH_PROG([MV], [mv], [mv])
+  AC_PROG_SED
+])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -296,7 +311,6 @@ AM_COND_IF([USE_SYSTEM_SHARED_LIB],
   [AC_CONFIG_FILES([libudns/Makefile
                  libev/Makefile])])
 
-
 AC_ARG_ENABLE(connmarktos,
 [AS_HELP_STRING(--enable-connmarktos, Enable saved connmark to IP TOS QoS feature)],
 [
@@ -328,5 +342,9 @@ if test x"$enable_connmarktos" = "xyes" ; then
 	fi
 fi
 
+
+AM_COND_IF([ENABLE_DOCUMENTATION],
+  [AC_CONFIG_FILES([doc/Makefile])
+])
 
 AC_OUTPUT
