@@ -1,3 +1,9 @@
+shadowsocks-libev (2.5.0-1-ovh-1) unstable; urgency=medium
+
+  * Upstream 2.5.0 merged with OVH work
+
+ --  <martin.wetterwald@corp.ovh.com>  Wed, 21 Sep 2016 09:16:34 +0000
+
 shadowsocks-libev (2.5.0-1) unstable; urgency=medium
 
   * Fix several bugs of the command line interface.
