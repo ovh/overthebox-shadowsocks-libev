@@ -1,3 +1,9 @@
+shadowsocks-libev (2.5.0-1-ovh-2) unstable; urgency=medium
+
+  * Bug fix (monitoring_ip feature invalid JSON syntax)
+
+ --  <martin.wetterwald@corp.ovh.com>  Wed, 28 Sep 2016 14:09:10 +0000
+
 shadowsocks-libev (2.5.0-1-ovh-1) unstable; urgency=medium
 
   * Upstream 2.5.0 merged with OVH work
