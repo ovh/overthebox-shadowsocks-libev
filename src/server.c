@@ -880,7 +880,7 @@ static void server_recv_cb(EV_P_ ev_io *w, int revents)
                         LOGI("Monitoring request from %s", peer_name);
                     }
 
-                    const char * payload = "{'ok': true}";
+                    const char * payload = "{\"ok\": true}";
                     int payload_size = strlen(payload);
                     server->buf->len = payload_size;
                     memcpy(server->buf->array, payload, payload_size);
