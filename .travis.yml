@@ -9,6 +9,8 @@ addons:
     - autoconf
     - libtool
     - libssl-dev
+    - libsodium-dev
+    - libev-dev
     - gawk
     - debhelper
     - dh-systemd
