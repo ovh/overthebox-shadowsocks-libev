@@ -244,10 +244,6 @@ jconf_t *read_jconf(const char *file)
                         }
                     }
                 }
-            } else if (strcmp(name, "monitoring_ip") == 0) {
-                if (inet_pton(AF_INET, to_string(value), &conf.monitor_addr) != 1) {
-                    FATAL("Invalid monitoring IPv4 address");
-                }
             } else if (strcmp(name, "tunnel_address") == 0) {
                 conf.tunnel_address = to_string(value);
             } else if (strcmp(name, "mode") == 0) {
