@@ -43,8 +43,6 @@
 #define TCP_AND_UDP  1
 #define UDP_ONLY     3
 
-#include <arpa/inet.h>
-
 typedef struct {
     char *host;
     char *port;
@@ -77,7 +75,6 @@ typedef struct {
     char *nameserver;
     int dscp_num;
     ss_dscp_t dscp[MAX_DSCP_NUM];
-    struct in_addr monitor_addr;
     char *tunnel_address;
     int mode;
     int mtu;
