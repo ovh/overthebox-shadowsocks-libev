@@ -5,11 +5,11 @@ AC_PREREQ([2.67])
 AC_INIT([shadowsocks-libev], [2.5.0], [max.c.lv@gmail.com])
 AC_CONFIG_SRCDIR([src/encrypt.c])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_AUX_DIR(auto)
+AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_USE_SYSTEM_EXTENSIONS
 
-AM_INIT_AUTOMAKE([subdir-objects foreign -Wno-gnu -Werror])
+AM_INIT_AUTOMAKE([1.9 subdir-objects foreign -Wno-gnu -Werror])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AM_MAINTAINER_MODE
@@ -19,18 +19,6 @@ dnl Checks for lib
 AC_DISABLE_STATIC
 AC_DISABLE_SHARED
 LT_INIT([dlopen])
-
-dnl Checks for using shared libraries from system
-AC_ARG_ENABLE(
-  [system-shared-lib],
-  AS_HELP_STRING([--enable-system-shared-lib], [build against shared libraries when possible]),
-  [
-    case "${enableval}" in
-      yes) enable_system_shared_lib=true ;;
-      no) enable_system_shared_lib=false ;;
-      *) AC_MSG_ERROR([bad value ${enableval} for --enable-system-shared-lib]) ;;
-    esac], [enable_system_shared_lib=false])
-AM_CONDITIONAL([USE_SYSTEM_SHARED_LIB], [test x$enable_system_shared_lib = xtrue])
 
 dnl Checks for crypto library
 AC_ARG_WITH(
@@ -68,11 +56,6 @@ AC_PROG_LN_S
 AC_PROG_LIBTOOL
 AC_PROG_MAKE_SET
 AC_LANG_SOURCE
-
-dnl Checks for libev
-AM_COND_IF([USE_SYSTEM_SHARED_LIB],
-  [],
-  [m4_include([libev/libev.m4])])
 
 dnl Add library for mingw
 case $host in
@@ -297,19 +280,12 @@ dnl Add define for libudns to enable IPv6 support
 dnl This is an option defined in the origin configure script
 AC_DEFINE([HAVE_IPv6], [1], [Enable IPv6 support in libudns])
 
-AM_COND_IF([USE_SYSTEM_SHARED_LIB],
-  [],
-  [AC_CONFIG_SUBDIRS([libsodium])])
-
-AC_CONFIG_FILES([ shadowsocks-libev.pc
+AC_CONFIG_FILES([shadowsocks-libev.pc
                  Makefile
                  libcork/Makefile
                  libipset/Makefile
+                 libudns/Makefile
                  src/Makefile])
-AM_COND_IF([USE_SYSTEM_SHARED_LIB],
-  [],
-  [AC_CONFIG_FILES([libudns/Makefile
-                 libev/Makefile])])
 
 AC_ARG_ENABLE(connmarktos,
 [AS_HELP_STRING(--enable-connmarktos, Enable saved connmark to IP TOS QoS feature)],
