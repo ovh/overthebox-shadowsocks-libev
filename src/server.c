@@ -421,9 +421,13 @@ int create_and_bind(const char *host, const char *port, int mptcp)
         }
 
         if (mptcp == 1) {
-            err = setsockopt(listen_sock, IPPROTO_TCP, MPTCP_ENABLED, &opt, sizeof(opt));
-            if (err == -1) {
-                continue;
+            int i = 0;
+            while((mptcp = mptcp_enabled_values[i]) > 0) {
+                err = setsockopt(listen_sock, IPPROTO_TCP, mptcp, &opt, sizeof(opt));
+                if (err != -1) {
+                    break;
+                }
+                i++;
             }
         }
 
@@ -443,7 +447,7 @@ int create_and_bind(const char *host, const char *port, int mptcp)
         return -1;
     }
 
-    if (mptcp == 1) {
+    if (mptcp > 1) {
         LOGI("MPTCP enabled");
     }
 
